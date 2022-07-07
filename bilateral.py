@@ -11,8 +11,8 @@ def weight(i, j, m, n, f):
     if key in weight_cache:
         return weight_cache[key]
 
-    space_weight = np.exp(-(((i - m) ** 2 + (j - n) ** 2) / (2 * SIGMA_SPACE_SQUARE)))
-    color_weight = np.exp(-((np.linalg.norm(f[i, j] - f[m, n]) ** 2) / (2 * SIGMA_COLOR_SQUARE)))
+    space_weight = np.exp(-(((i - m) ** 2 + (j - n) ** 2) / (2 * SIGMA_SPACE_SQUARE**2)))
+    color_weight = np.exp(-((np.linalg.norm(f[i, j] - f[m, n]) ** 2) / (2 * SIGMA_COLOR_SQUARE**2)))
 
     weight_cache[key] = space_weight * color_weight
     return space_weight * color_weight
@@ -53,35 +53,41 @@ def bilateral(src, result_src):
     new_img.save(result_src)
 
 def detail(src, smoothed, result_src):
-    f = np.array(Image.open(src), dtype=np.float64)
-    g = np.array(Image.open(smoothed), dtype=np.float64)
+    f_src = np.array(Image.open(src), dtype=np.float64)
+    f_smoothed = np.array(Image.open(smoothed), dtype=np.float64)
 
     ans = []
-    for i in tqdm(range(len(f))):
+    for i in tqdm(range(len(f_src))):
         acc = []
-        for j in range(len(f[0])):
-            acc.append(np.array(f[i, j] - g[i, j], dtype=np.float64))
+        for j in range(len(f_src[0])):
+            r = f_src[i,j][0] - f_smoothed[i,j][0]
+            g = f_src[i,j][1] - f_smoothed[i,j][1]
+            b = f_src[i,j][2] - f_smoothed[i,j][2]
+            acc.append(np.array([r if 0 <= r <= 255 else 0, g if 0 <= g <= 255 else 0, b if 0 <= b <= 255 else 0], dtype=np.float64))
         ans.append(acc)
 
     new_img = Image.fromarray(np.array(ans, dtype=np.uint8))
     new_img.save(result_src)
 
 def enhanced(src, detail, result_src):
-    f = np.array(Image.open(src), dtype=np.float64)
-    g = np.array(Image.open(detail), dtype=np.float64)
+    f_src = np.array(Image.open(src), dtype=np.float64)
+    f_smoothed = np.array(Image.open(detail), dtype=np.float64)
 
     ans = []
-    for i in tqdm(range(len(f))):
+    for i in tqdm(range(len(f_src))):
         acc = []
-        for j in range(len(f[0])):
-            acc.append(np.array(f[i, j] + 3 * g[i, j], dtype=np.float64))
+        for j in range(len(f_src[0])):
+            r = f_src[i,j][0] + 3 * f_smoothed[i,j][0]
+            g = f_src[i,j][1] + 3 * f_smoothed[i,j][1]
+            b = f_src[i,j][2] + 3 * f_smoothed[i,j][2]
+            acc.append(np.array([r if 0 <= r <= 255 else 0 if r < 0 else 255, g if 0 <= g <= 255 else 0 if g < 0 else 255, b if 0 <= b <= 255 else 0 if b < 0 else 255], dtype=np.float64))
         ans.append(acc)
 
     new_img = Image.fromarray(np.array(ans, dtype=np.uint8))
     new_img.save(result_src)
 
 def main():
-    # bilateral("src.jpg", "smoothed.jpg")
+    bilateral("src.jpg", "smoothed.jpg")
     detail("src.jpg", "smoothed.jpg", "detail.jpg")
     enhanced("src.jpg", "detail.jpg", "enhanced.jpg")
 
